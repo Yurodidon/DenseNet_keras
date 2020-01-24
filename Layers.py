@@ -9,17 +9,15 @@ def conv(input, channel, kernel_size, name, strides=(1, 1)):
     return x
 
 # Transition block connect two dense blocks together
-def transition(x, l, theta, config, name):
-    k0, k = config['k0'], config['k']
+def transition(x, k0, k, theta, name):
     x = layer.BatchNormalization(name=name + '_bn')(x)
-    x = conv(x, int((k0 + k * (l - 1)) * theta), (1, 1), name=name+'_conv')
+    x = conv(x, int(k0 * theta), (1, 1), name=name+'_conv')
     x = layer.AveragePooling2D((2, 2), strides=(2, 2), name=name+'_pool')(x)
     # return next index of layer in order to be more convenient
-    return x, l + 2
+    return x, int(k0 * theta)
 
 # One DenseBlock
-def denseBlock(input, s_l, t, config, name):
-    k0, k = config['k0'], config['k']
+def denseBlock(input, k0, k, t, name):
     def H(x, l, name_h):
         x = layer.BatchNormalization(name=name_h + '_bn')(x)
         x = layer.ReLU(name=name_h + '_H_relu')(x)
@@ -27,11 +25,11 @@ def denseBlock(input, s_l, t, config, name):
         return x
 
     prev = [input]
-    for i in range(0, t):
+    for i in range(1, t + 1):
         if(len(prev) == 1):
             c = input
         else:
             c = layer.concatenate(prev, axis=-1)
-        x = H(c, s_l + i, name + '_' + str(i + 1))
+        x = H(c, i + 1, name + '_' + str(i))
         prev.append(x)
-    return x, s_l + t
+    return x, k0 + k * t
